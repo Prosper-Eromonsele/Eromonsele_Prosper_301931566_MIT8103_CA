@@ -1,0 +1,12 @@
+# PostgreSQL 16 for Portfolios 1-3. Start with:  docker compose up -d
+services:
+  postgres:
+    image: postgres:16
+    container_name: tcs-postgres
+    environment:
+      POSTGRES_PASSWORD: tcs_lab_2026      # lab-only password
+      POSTGRES_DB: tcsolutions
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./:/work                            # repo is visible inside the container at /work

@@ -1,0 +1,5 @@
+# local database data and OS clutter
+pgdata/
+*.log
+.DS_Store
+Thumbs.db
