@@ -1,0 +1,129 @@
+// TC.Solutions Fintech - ER model (paste into https://dbdiagram.io)
+Project TCSolutions { database_type: 'PostgreSQL' }
+
+Table kyc_tiers {
+  tier smallint [pk]
+  description varchar
+  single_txn_limit numeric
+  daily_limit numeric
+  max_balance numeric
+}
+Table banks {
+  bank_code varchar [pk]
+  bank_name varchar [unique]
+}
+Table staff {
+  staff_id int [pk]
+  full_name varchar
+  email varchar [unique]
+  role varchar
+}
+Table customers {
+  customer_id bigint [pk]
+  first_name varchar
+  last_name varchar
+  phone varchar [unique]
+  email varchar [unique]
+  date_of_birth date
+  state_of_residence varchar
+  kyc_tier smallint [ref: > kyc_tiers.tier]
+  bvn_hash char(64) [unique]
+  nin_hash char(64) [unique]
+  status varchar
+  created_at timestamptz
+}
+Table devices {
+  device_id bigint [pk]
+  device_fingerprint varchar [unique]
+  os varchar
+  first_seen timestamptz
+}
+Table customer_devices {
+  customer_id bigint [ref: > customers.customer_id]
+  device_id bigint [ref: > devices.device_id]
+  first_used timestamptz
+  last_used timestamptz
+  indexes { (customer_id, device_id) [pk] }
+}
+Table wallets {
+  wallet_id bigint [pk]
+  wallet_type varchar
+  customer_id bigint [ref: > customers.customer_id, null]
+  currency char(3)
+  balance numeric
+  status varchar
+  opened_at timestamptz
+}
+Table merchants {
+  merchant_id bigint [pk]
+  business_name varchar
+  cac_rc_number varchar [unique]
+  category varchar
+  settlement_wallet_id bigint [unique, ref: - wallets.wallet_id]
+  api_key_hash char(64)
+  status varchar
+}
+Table agents {
+  agent_id bigint [pk]
+  agent_code varchar [unique]
+  full_name varchar
+  phone varchar [unique]
+  lga varchar
+  state varchar
+  float_wallet_id bigint [unique, ref: - wallets.wallet_id]
+  status varchar
+}
+Table beneficiaries {
+  beneficiary_id bigint [pk]
+  customer_id bigint [ref: > customers.customer_id]
+  bank_code varchar [ref: > banks.bank_code]
+  account_number char(10)
+  account_name varchar
+  nickname varchar
+}
+Table transactions {
+  txn_id bigint [pk]
+  reference varchar [unique]
+  txn_type varchar
+  status varchar
+  amount numeric
+  currency char(3)
+  channel varchar
+  initiated_by bigint [ref: > customers.customer_id]
+  device_id bigint [ref: > devices.device_id]
+  beneficiary_id bigint [ref: > beneficiaries.beneficiary_id]
+  merchant_id bigint [ref: > merchants.merchant_id]
+  agent_id bigint [ref: > agents.agent_id]
+  reversal_of_txn_id bigint [unique, ref: - transactions.txn_id]
+  narration varchar
+  created_at timestamptz
+}
+Table ledger_entries {
+  entry_id bigint [pk]
+  txn_id bigint [ref: > transactions.txn_id]
+  wallet_id bigint [ref: > wallets.wallet_id]
+  direction char(2)
+  amount numeric
+  balance_after numeric
+  created_at timestamptz
+}
+Table fraud_alerts {
+  alert_id bigint [pk]
+  customer_id bigint [ref: > customers.customer_id]
+  txn_id bigint [ref: > transactions.txn_id]
+  rule_code varchar
+  risk_score smallint
+  status varchar
+  assigned_to int [ref: > staff.staff_id]
+  raised_at timestamptz
+}
+Table audit_log {
+  audit_id bigint [pk]
+  staff_id int [ref: > staff.staff_id]
+  action varchar
+  table_name varchar
+  record_id bigint
+  old_value jsonb
+  new_value jsonb
+  logged_at timestamptz
+}
