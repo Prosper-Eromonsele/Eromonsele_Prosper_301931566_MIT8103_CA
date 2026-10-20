@@ -7,7 +7,3 @@ Thumbs.db
 # keep the execution-plan evidence
 !portfolio-*/results/*.log
 *.zip
-
-# keep the execution-plan evidence
-!portfolio-*/results/*.log
-*.zip
