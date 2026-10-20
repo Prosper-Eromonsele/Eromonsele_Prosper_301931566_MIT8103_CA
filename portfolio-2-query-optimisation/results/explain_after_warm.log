@@ -1,0 +1,208 @@
+********* QUERY **********
+SET search_path TO tcs;
+**************************
+
+SET
+********* QUERY **********
+SELECT customer_id AS cust FROM customers ORDER BY customer_id OFFSET 1002 LIMIT 1 
+**************************
+
+********* QUERY **********
+SELECT wallet_id AS w_from FROM wallets WHERE customer_id = 1006 
+**************************
+
+********* QUERY **********
+SELECT wallet_id AS w_to FROM wallets WHERE customer_id = 1006 + 1 
+**************************
+
+********* QUERY **********
+SELECT initiated_by AS fast_cust FROM transactions
+WHERE txn_type = 'TRANSFER' AND narration = 'Transfer' AND created_at::date = '2026-10-10' LIMIT 1 
+**************************
+
+********* QUERY **********
+SELECT indexrelname AS index_name, pg_size_pretty(pg_relation_size(indexrelid)) AS size
+FROM pg_stat_user_indexes WHERE indexrelname LIKE 'idx\_%' ORDER BY 1;
+**************************
+
+        index_name        |  size   
+--------------------------+---------
+ idx_ledger_txn           | 11 MB
+ idx_ledger_wallet_time   | 18 MB
+ idx_txn_merchant_pay_day | 1328 kB
+ idx_txn_sender_transfers | 4512 kB
+(4 rows)
+
+********* QUERY **********
+EXPLAIN (ANALYZE, BUFFERS)
+SELECT le.created_at::date, t.reference, t.txn_type, t.narration,
+       CASE WHEN le.direction = 'DR' THEN le.amount END,
+       CASE WHEN le.direction = 'CR' THEN le.amount END,
+       le.balance_after
+FROM wallets w
+JOIN ledger_entries le ON le.wallet_id = w.wallet_id
+JOIN transactions  t  ON t.txn_id     = le.txn_id
+WHERE w.customer_id = 1006
+  AND le.created_at >= '2026-09-01' AND le.created_at < '2026-10-01'
+ORDER BY le.created_at, le.entry_id;
+**************************
+
+                                                                                                QUERY PLAN                                                                                                
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Sort  (cost=43.40..43.41 rows=5 width=139) (actual time=2.281..2.290 rows=7 loops=1)
+   Sort Key: le.created_at, le.entry_id
+   Sort Method: quicksort  Memory: 25kB
+   Buffers: shared hit=47
+   ->  Nested Loop  (cost=1.14..43.34 rows=5 width=139) (actual time=0.083..2.052 rows=7 loops=1)
+         Buffers: shared hit=41
+         ->  Nested Loop  (cost=0.71..40.46 rows=5 width=39) (actual time=0.042..0.519 rows=7 loops=1)
+               Buffers: shared hit=13
+               ->  Index Scan using uq_customer_currency on wallets w  (cost=0.29..8.31 rows=1 width=8) (actual time=0.007..0.014 rows=1 loops=1)
+                     Index Cond: (customer_id = 1006)
+                     Buffers: shared hit=3
+               ->  Index Scan using idx_ledger_wallet_time on ledger_entries le  (cost=0.42..32.08 rows=7 width=47) (actual time=0.031..0.474 rows=7 loops=1)
+                     Index Cond: ((wallet_id = w.wallet_id) AND (created_at >= '2026-09-01 00:00:00+00'::timestamp with time zone) AND (created_at < '2026-10-01 00:00:00+00'::timestamp with time zone))
+                     Buffers: shared hit=10
+         ->  Index Scan using transactions_pkey on transactions t  (cost=0.42..0.57 rows=1 width=56) (actual time=0.124..0.124 rows=1 loops=7)
+               Index Cond: (txn_id = le.txn_id)
+               Buffers: shared hit=28
+ Planning:
+   Buffers: shared hit=127 dirtied=1
+ Planning Time: 2.262 ms
+ Execution Time: 2.377 ms
+(21 rows)
+
+********* QUERY **********
+EXPLAIN (ANALYZE, BUFFERS)
+SELECT m.merchant_id, m.business_name, count(*), sum(t.amount),
+       sum(LEAST(round(t.amount * 0.015, 2), 2000))
+FROM transactions t
+JOIN merchants m ON m.merchant_id = t.merchant_id
+WHERE t.txn_type = 'MERCHANT_PAYMENT' AND t.status = 'SUCCESS'
+  AND t.created_at >= '2026-09-15' AND t.created_at < '2026-09-16'
+GROUP BY m.merchant_id, m.business_name
+ORDER BY 4 DESC
+LIMIT 10;
+**************************
+
+                                                                                    QUERY PLAN                                                                                    
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=128.24..128.26 rows=10 width=97) (actual time=3.553..3.570 rows=10 loops=1)
+   Buffers: shared hit=97
+   ->  Sort  (cost=128.24..129.90 rows=664 width=97) (actual time=3.550..3.563 rows=10 loops=1)
+         Sort Key: (sum(t.amount)) DESC
+         Sort Method: top-N heapsort  Memory: 26kB
+         Buffers: shared hit=97
+         ->  HashAggregate  (cost=103.93..113.89 rows=664 width=97) (actual time=2.975..3.381 rows=591 loops=1)
+               Group Key: m.merchant_id
+               Batches: 1  Memory Usage: 553kB
+               Buffers: shared hit=94
+               ->  Hash Join  (cost=52.29..92.31 rows=664 width=30) (actual time=0.660..1.490 rows=806 loops=1)
+                     Hash Cond: (t.merchant_id = m.merchant_id)
+                     Buffers: shared hit=94
+                     ->  Index Scan using idx_txn_merchant_pay_day on transactions t  (cost=0.29..38.57 rows=664 width=13) (actual time=0.020..0.439 rows=806 loops=1)
+                           Index Cond: ((created_at >= '2026-09-15 00:00:00+00'::timestamp with time zone) AND (created_at < '2026-09-16 00:00:00+00'::timestamp with time zone))
+                           Buffers: shared hit=69
+                     ->  Hash  (cost=37.00..37.00 rows=1200 width=25) (actual time=0.622..0.627 rows=1200 loops=1)
+                           Buckets: 2048  Batches: 1  Memory Usage: 84kB
+                           Buffers: shared hit=25
+                           ->  Seq Scan on merchants m  (cost=0.00..37.00 rows=1200 width=25) (actual time=0.008..0.277 rows=1200 loops=1)
+                                 Buffers: shared hit=25
+ Planning:
+   Buffers: shared hit=92
+ Planning Time: 0.832 ms
+ Execution Time: 3.658 ms
+(25 rows)
+
+********* QUERY **********
+EXPLAIN (ANALYZE, BUFFERS)
+SELECT count(*), sum(amount)
+FROM transactions
+WHERE initiated_by = 207 AND txn_type = 'TRANSFER' AND status = 'SUCCESS'
+  AND created_at >  TIMESTAMPTZ '2026-10-10 02:00+01' - INTERVAL '60 minutes'
+  AND created_at <= TIMESTAMPTZ '2026-10-10 02:00+01';
+**************************
+
+                                                                                                    QUERY PLAN                                                                                                    
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Aggregate  (cost=8.45..8.46 rows=1 width=40) (actual time=0.679..0.679 rows=1 loops=1)
+   Buffers: shared hit=7
+   ->  Index Scan using idx_txn_sender_transfers on transactions  (cost=0.42..8.44 rows=1 width=5) (actual time=0.298..0.660 rows=18 loops=1)
+         Index Cond: ((initiated_by = 207) AND (created_at > ('2026-10-10 01:00:00+00'::timestamp with time zone - '01:00:00'::interval)) AND (created_at <= '2026-10-10 01:00:00+00'::timestamp with time zone))
+         Buffers: shared hit=7
+ Planning:
+   Buffers: shared hit=18
+ Planning Time: 0.644 ms
+ Execution Time: 0.740 ms
+(9 rows)
+
+********* QUERY **********
+EXPLAIN (ANALYZE, BUFFERS)
+SELECT initiated_by, max(c)
+FROM (SELECT initiated_by,
+             count(*) OVER (PARTITION BY initiated_by ORDER BY created_at
+                            RANGE BETWEEN INTERVAL '60 minutes' PRECEDING AND CURRENT ROW) AS c
+      FROM transactions
+      WHERE txn_type = 'TRANSFER' AND status = 'SUCCESS' AND created_at >= '2026-10-01') x
+GROUP BY initiated_by
+HAVING max(c) >= 10;
+**************************
+
+                                                                             QUERY PLAN                                                                              
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ GroupAggregate  (cost=0.42..4391.92 rows=966 width=16) (actual time=2.353..45.713 rows=5 loops=1)
+   Group Key: transactions.initiated_by
+   Filter: (max((count(*) OVER (?))) >= 10)
+   Rows Removed by Filter: 19741
+   Buffers: shared hit=564
+   ->  WindowAgg  (cost=0.42..4003.16 rows=23501 width=24) (actual time=0.182..38.768 rows=27246 loops=1)
+         Buffers: shared hit=564
+         ->  Index Only Scan using idx_txn_sender_transfers on transactions  (cost=0.42..3591.90 rows=23501 width=16) (actual time=0.124..11.888 rows=27246 loops=1)
+               Index Cond: (created_at >= '2026-10-01 00:00:00+00'::timestamp with time zone)
+               Heap Fetches: 5
+               Buffers: shared hit=564
+ Planning:
+   Buffers: shared hit=3
+ Planning Time: 0.746 ms
+ Execution Time: 45.913 ms
+(15 rows)
+
+********* QUERY **********
+BEGIN;
+**************************
+
+BEGIN
+********* QUERY **********
+INSERT INTO transactions (reference, txn_type, status, amount, channel, initiated_by, narration)
+VALUES ('TCS-P2-' || to_char(clock_timestamp(), 'YYYYMMDDHH24MISSUS'),
+        'TRANSFER', 'SUCCESS', 100, 'APP', 1006, 'P2 timing test');
+**************************
+
+INSERT 0 1
+********* QUERY **********
+INSERT INTO ledger_entries (txn_id, wallet_id, direction, amount, balance_after)
+SELECT currval('transactions_txn_id_seq'), wallet_id, 'DR', 100, balance - 100 FROM wallets WHERE wallet_id = 1006;
+**************************
+
+INSERT 0 1
+********* QUERY **********
+INSERT INTO ledger_entries (txn_id, wallet_id, direction, amount, balance_after)
+SELECT currval('transactions_txn_id_seq'), wallet_id, 'CR', 100, balance + 100 FROM wallets WHERE wallet_id = 1007;
+**************************
+
+INSERT 0 1
+********* QUERY **********
+UPDATE wallets SET balance = balance - 100 WHERE wallet_id = 1006;
+**************************
+
+UPDATE 1
+********* QUERY **********
+UPDATE wallets SET balance = balance + 100 WHERE wallet_id = 1007;
+**************************
+
+UPDATE 1
+********* QUERY **********
+COMMIT;
+**************************
+
+COMMIT

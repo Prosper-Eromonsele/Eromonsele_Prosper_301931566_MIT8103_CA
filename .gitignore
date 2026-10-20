@@ -3,3 +3,7 @@ pgdata/
 *.log
 .DS_Store
 Thumbs.db
+
+# keep the execution-plan evidence
+!portfolio-*/results/*.log
+*.zip
