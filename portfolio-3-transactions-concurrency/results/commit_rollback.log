@@ -1,0 +1,221 @@
+********* QUERY **********
+SET search_path TO tcs;
+**************************
+
+SET
+********* QUERY **********
+SELECT w.wallet_id AS bola  FROM wallets w JOIN customers c USING (customer_id) WHERE c.phone = '+2348099000001' 
+**************************
+
+********* QUERY **********
+SELECT w.wallet_id AS kunle FROM wallets w JOIN customers c USING (customer_id) WHERE c.phone = '+2348099000002' 
+**************************
+
+********* QUERY **********
+SELECT w.wallet_id AS ada   FROM wallets w JOIN customers c USING (customer_id) WHERE c.phone = '+2348099000003' 
+**************************
+
+********* QUERY **********
+SELECT * FROM v_demo_wallets ORDER BY wallet_id;
+**************************
+
+ customer | wallet_id | stored_balance | ledger_balance | reconciles 
+----------+-----------+----------------+----------------+------------
+ Bola     |     41552 |       10000.00 |       10000.00 | OK
+ Kunle    |     41553 |        5000.00 |        5000.00 | OK
+ Ada      |     41554 |           0.00 |              0 | OK
+(3 rows)
+
+********* QUERY **********
+BEGIN;
+**************************
+
+BEGIN
+********* QUERY **********
+SELECT transfer(41552, 41553, 2500, 'Rent contribution') AS txn_id;
+**************************
+
+ txn_id 
+--------
+ 300709
+(1 row)
+
+********* QUERY **********
+COMMIT;
+**************************
+
+COMMIT
+********* QUERY **********
+SELECT * FROM v_demo_wallets ORDER BY wallet_id;
+**************************
+
+ customer | wallet_id | stored_balance | ledger_balance | reconciles 
+----------+-----------+----------------+----------------+------------
+ Bola     |     41552 |        7500.00 |        7500.00 | OK
+ Kunle    |     41553 |        7500.00 |        7500.00 | OK
+ Ada      |     41554 |           0.00 |              0 | OK
+(3 rows)
+
+********* QUERY **********
+BEGIN;
+**************************
+
+BEGIN
+********* QUERY **********
+SELECT transfer(41552, 41554, 1000, 'Cancelled by customer') AS txn_id;
+**************************
+
+ txn_id 
+--------
+ 300710
+(1 row)
+
+********* QUERY **********
+SELECT * FROM v_demo_wallets ORDER BY wallet_id;
+**************************
+
+ customer | wallet_id | stored_balance | ledger_balance | reconciles 
+----------+-----------+----------------+----------------+------------
+ Bola     |     41552 |        6500.00 |        6500.00 | OK
+ Kunle    |     41553 |        7500.00 |        7500.00 | OK
+ Ada      |     41554 |        1000.00 |        1000.00 | OK
+(3 rows)
+
+********* QUERY **********
+ROLLBACK;
+**************************
+
+ROLLBACK
+********* QUERY **********
+SELECT * FROM v_demo_wallets ORDER BY wallet_id;
+**************************
+
+ customer | wallet_id | stored_balance | ledger_balance | reconciles 
+----------+-----------+----------------+----------------+------------
+ Bola     |     41552 |        7500.00 |        7500.00 | OK
+ Kunle    |     41553 |        7500.00 |        7500.00 | OK
+ Ada      |     41554 |           0.00 |              0 | OK
+(3 rows)
+
+********* QUERY **********
+BEGIN;
+**************************
+
+BEGIN
+********* QUERY **********
+SELECT transfer(41554, 41552, 3000, 'No money') AS txn_id;
+**************************
+
+********* QUERY **********
+SELECT 1 AS anything;
+**************************
+
+********* QUERY **********
+ROLLBACK;
+**************************
+
+ROLLBACK
+********* QUERY **********
+BEGIN;
+**************************
+
+BEGIN
+********* QUERY **********
+INSERT INTO transactions (reference, txn_type, status, amount, channel, initiated_by, narration)
+VALUES ('TCS-P3-HALFDONE', 'TRANSFER', 'SUCCESS', 50000, 'APP',
+        (SELECT customer_id FROM wallets WHERE wallet_id = 41553), 'Half-done transfer');
+**************************
+
+INSERT 0 1
+********* QUERY **********
+INSERT INTO ledger_entries (txn_id, wallet_id, direction, amount, balance_after)
+VALUES (currval('transactions_txn_id_seq'), 41553, 'DR', 50000, 0);
+**************************
+
+INSERT 0 1
+********* QUERY **********
+UPDATE wallets SET balance = balance - 50000 WHERE wallet_id = 41553;
+**************************
+
+********* QUERY **********
+ROLLBACK;
+**************************
+
+ROLLBACK
+********* QUERY **********
+SELECT count(*) AS rows_with_that_reference FROM transactions WHERE reference = 'TCS-P3-HALFDONE';
+**************************
+
+ rows_with_that_reference 
+--------------------------
+                        0
+(1 row)
+
+********* QUERY **********
+BEGIN;
+**************************
+
+BEGIN
+********* QUERY **********
+SELECT transfer(41552, 41553, 500, 'Batch item 1') AS txn_id;
+**************************
+
+ txn_id 
+--------
+ 300712
+(1 row)
+
+********* QUERY **********
+SAVEPOINT before_item_2;
+**************************
+
+SAVEPOINT
+********* QUERY **********
+SELECT transfer(41554, 41553, 5000, 'Batch item 2') AS txn_id;
+**************************
+
+********* QUERY **********
+ROLLBACK TO SAVEPOINT before_item_2;
+**************************
+
+ROLLBACK
+********* QUERY **********
+SELECT transfer(41552, 41554, 300, 'Batch item 3') AS txn_id;
+**************************
+
+ txn_id 
+--------
+ 300713
+(1 row)
+
+********* QUERY **********
+COMMIT;
+**************************
+
+COMMIT
+********* QUERY **********
+SELECT * FROM v_demo_wallets ORDER BY wallet_id;
+**************************
+
+ customer | wallet_id | stored_balance | ledger_balance | reconciles 
+----------+-----------+----------------+----------------+------------
+ Bola     |     41552 |        6700.00 |        6700.00 | OK
+ Kunle    |     41553 |        8000.00 |        8000.00 | OK
+ Ada      |     41554 |         300.00 |         300.00 | OK
+(3 rows)
+
+********* QUERY **********
+SELECT transfer(41552, 41553, 150000, 'Too big') AS txn_id;
+**************************
+
+********* QUERY **********
+SELECT * FROM v_demo_wallets ORDER BY wallet_id;
+**************************
+
+ customer | wallet_id | stored_balance | ledger_balance | reconciles 
+----------+-----------+----------------+----------------+------------
+ Bola     |     41552 |        6700.00 |        6700.00 | OK
+ Kunle    |     41553 |        8000.00 |        8000.00 | OK
+ Ada      |     41554 |         300.00 |         300.00 | OK
+(3 rows)
+

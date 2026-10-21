@@ -1,0 +1,58 @@
+********* QUERY **********
+SET search_path TO tcs;
+**************************
+
+SET
+********* QUERY **********
+SELECT w.wallet_id AS bola  FROM wallets w JOIN customers c USING (customer_id) WHERE c.phone = '+2348099000001' 
+**************************
+
+********* QUERY **********
+SELECT w.wallet_id AS kunle FROM wallets w JOIN customers c USING (customer_id) WHERE c.phone = '+2348099000002' 
+**************************
+
+********* QUERY **********
+SELECT w.wallet_id AS ada   FROM wallets w JOIN customers c USING (customer_id) WHERE c.phone = '+2348099000003' 
+**************************
+
+********* QUERY **********
+SELECT transfer(41552, 41553, 1000, 'During read committed');
+**************************
+
+ transfer 
+----------
+   300716
+(1 row)
+
+********* QUERY **********
+SELECT transfer(41552, 41553, 1000, 'During repeatable read');
+**************************
+
+ transfer 
+----------
+   300717
+(1 row)
+
+********* QUERY **********
+BEGIN;
+**************************
+
+BEGIN
+********* QUERY **********
+SELECT balance FROM wallets WHERE wallet_id = 41552;
+**************************
+
+ balance  
+----------
+ 10000.00
+(1 row)
+
+********* QUERY **********
+UPDATE wallets SET balance = 2000 WHERE wallet_id = 41552;
+**************************
+
+UPDATE 1
+********* QUERY **********
+UPDATE wallets SET balance = balance + 8000 WHERE wallet_id = 41554;
+**************************
+
