@@ -118,4 +118,15 @@ The same two opposite transfers, this time through `transfer()`: A ran `transfer
 
 ## Screenshots
 
-In `docs/screenshots/`: `p3_*` files covering demos A to E2 and the `pg_stat_activity` blocking evidence.
+All in `docs/screenshots/`:
+
+| Files | Shows |
+|---|---|
+| `p3_00`, `p3_01a` to `p3_01d` | Files in place, `transfer()` created, demo accounts, and demos A to B5 |
+| `p3_02a`, `p3_02b` | The two psql sessions started |
+| `p3_03a`, `p3_03b` | C: isolation levels |
+| `p3_04a` to `p3_04c` | D1: the double-spend race and the MISMATCH result |
+| `p3_05a` to `p3_05c` | D2: locking fix, including the `pg_stat_activity` blocking evidence |
+| `p3_06a`, `p3_06b` | D3: REPEATABLE READ serialization error |
+| `p3_07a`, `p3_07b` | E1: deadlock detected |
+| `p3_08a`, `p3_08b` | E2: lock ordering, no deadlock |
