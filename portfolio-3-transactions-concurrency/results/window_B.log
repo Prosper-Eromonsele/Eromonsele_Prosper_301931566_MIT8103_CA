@@ -56,3 +56,84 @@ UPDATE 1
 UPDATE wallets SET balance = balance + 8000 WHERE wallet_id = 41554;
 **************************
 
+UPDATE 1
+********* QUERY **********
+COMMIT;
+**************************
+
+COMMIT
+********* QUERY **********
+BEGIN;
+**************************
+
+BEGIN
+********* QUERY **********
+SELECT transfer(41552, 41554, 8000, 'Race B');
+**************************
+
+********* QUERY **********
+ROLLBACK;
+**************************
+
+ROLLBACK
+********* QUERY **********
+BEGIN ISOLATION LEVEL REPEATABLE READ;
+**************************
+
+BEGIN
+********* QUERY **********
+SELECT balance FROM wallets WHERE wallet_id = 41552;
+**************************
+
+ balance  
+----------
+ 10000.00
+(1 row)
+
+********* QUERY **********
+UPDATE wallets SET balance = 2000 WHERE wallet_id = 41552;
+**************************
+
+********* QUERY **********
+ROLLBACK;
+**************************
+
+ROLLBACK
+********* QUERY **********
+BEGIN;
+**************************
+
+BEGIN
+********* QUERY **********
+UPDATE wallets SET balance = balance - 1000 WHERE wallet_id = 41553;
+**************************
+
+UPDATE 1
+********* QUERY **********
+UPDATE wallets SET balance = balance + 1000 WHERE wallet_id = 41552;
+**************************
+
+********* QUERY **********
+ROLLBACK;
+**************************
+
+ROLLBACK
+********* QUERY **********
+BEGIN;
+**************************
+
+BEGIN
+********* QUERY **********
+SELECT transfer(41553, 41552, 1000, 'Kunle to Bola');
+**************************
+
+ transfer 
+----------
+   300730
+(1 row)
+
+********* QUERY **********
+COMMIT;
+**************************
+
+COMMIT

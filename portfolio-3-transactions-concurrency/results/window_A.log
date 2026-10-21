@@ -283,3 +283,470 @@ COMMIT
 SELECT * FROM v_demo_wallets ORDER BY wallet_id;
 **************************
 
+ customer | wallet_id | stored_balance | ledger_balance | reconciles 
+----------+-----------+----------------+----------------+------------
+ Bola     |     41552 |        2000.00 |       10000.00 | MISMATCH
+ Kunle    |     41553 |       13000.00 |        5000.00 | MISMATCH
+ Ada      |     41554 |        8000.00 |              0 | MISMATCH
+(3 rows)
+
+********* QUERY **********
+SELECT * FROM v_demo_wallets ORDER BY wallet_id;
+**************************
+
+ customer | wallet_id | stored_balance | ledger_balance | reconciles 
+----------+-----------+----------------+----------------+------------
+ Bola     |     41552 |        2000.00 |       10000.00 | MISMATCH
+ Kunle    |     41553 |       13000.00 |        5000.00 | MISMATCH
+ Ada      |     41554 |        8000.00 |              0 | MISMATCH
+(3 rows)
+
+********* QUERY **********
+SET search_path TO tcs;
+**************************
+
+SET
+********* QUERY **********
+DO $$
+DECLARE w BIGINT[]; t BIGINT[];
+BEGIN
+    SELECT array_agg(w2.wallet_id) INTO w
+    FROM wallets w2 JOIN customers c ON c.customer_id = w2.customer_id
+    WHERE c.phone IN ('+2348099000001','+2348099000002','+2348099000003');
+    IF w IS NULL THEN RETURN; END IF;
+
+    SELECT array_agg(DISTINCT txn_id) INTO t FROM ledger_entries WHERE wallet_id = ANY (w);
+
+    -- give the system wallet back what it paid out to fund the demo wallets
+    UPDATE wallets s
+    SET balance = s.balance + COALESCE((SELECT sum(CASE WHEN direction = 'DR' THEN amount ELSE -amount END)
+                                        FROM ledger_entries le
+                                        WHERE le.txn_id = ANY (t) AND le.wallet_id = s.wallet_id), 0)
+    WHERE s.wallet_type = 'SYSTEM';
+
+    DELETE FROM ledger_entries WHERE txn_id = ANY (t);
+    DELETE FROM transactions   WHERE txn_id = ANY (t);
+    UPDATE wallets SET balance = 0, status = 'ACTIVE' WHERE wallet_id = ANY (w);
+END $$;
+**************************
+
+DO
+********* QUERY **********
+INSERT INTO customers (first_name, last_name, phone, date_of_birth, state_of_residence, kyc_tier, bvn_hash) VALUES
+ ('Bola',  'Adewale', '+2348099000001', '1994-03-14', 'Lagos', 2, encode(sha256('DEMO-BVN-1'::bytea), 'hex')),
+ ('Kunle', 'Ojo',     '+2348099000002', '1989-11-02', 'Oyo',   2, encode(sha256('DEMO-BVN-2'::bytea), 'hex')),
+ ('Ada',   'Eze',     '+2348099000003', '1999-07-21', 'Enugu', 2, encode(sha256('DEMO-BVN-3'::bytea), 'hex'))
+ON CONFLICT (phone) DO NOTHING;
+**************************
+
+INSERT 0 0
+********* QUERY **********
+INSERT INTO wallets (wallet_type, customer_id)
+SELECT 'CUSTOMER', c.customer_id FROM customers c
+WHERE c.phone LIKE '+234809900000_'
+  AND NOT EXISTS (SELECT 1 FROM wallets w WHERE w.customer_id = c.customer_id);
+**************************
+
+INSERT 0 0
+********* QUERY **********
+SELECT transfer((SELECT wallet_id FROM wallets WHERE wallet_type = 'SYSTEM'),
+                w.wallet_id, x.amt, 'Demo funding', 'WEB', 'DEPOSIT')
+FROM (VALUES ('+2348099000001', 10000), ('+2348099000002', 5000)) AS x(phone, amt)
+JOIN customers c ON c.phone = x.phone
+JOIN wallets w ON w.customer_id = c.customer_id;
+**************************
+
+ transfer 
+----------
+   300720
+   300721
+(2 rows)
+
+********* QUERY **********
+CREATE OR REPLACE VIEW v_demo_wallets AS
+SELECT c.first_name AS customer, w.wallet_id, w.balance AS stored_balance,
+       COALESCE((SELECT sum(CASE WHEN direction = 'CR' THEN amount ELSE -amount END)
+                 FROM ledger_entries le WHERE le.wallet_id = w.wallet_id), 0) AS ledger_balance,
+       CASE WHEN w.balance = COALESCE((SELECT sum(CASE WHEN direction = 'CR' THEN amount ELSE -amount END)
+                 FROM ledger_entries le WHERE le.wallet_id = w.wallet_id), 0)
+            THEN 'OK' ELSE 'MISMATCH' END AS reconciles
+FROM wallets w JOIN customers c ON c.customer_id = w.customer_id
+WHERE c.phone LIKE '+234809900000_';
+**************************
+
+CREATE VIEW
+********* QUERY **********
+SELECT * FROM v_demo_wallets ORDER BY wallet_id;
+**************************
+
+ customer | wallet_id | stored_balance | ledger_balance | reconciles 
+----------+-----------+----------------+----------------+------------
+ Bola     |     41552 |       10000.00 |       10000.00 | OK
+ Kunle    |     41553 |        5000.00 |        5000.00 | OK
+ Ada      |     41554 |           0.00 |              0 | OK
+(3 rows)
+
+********* QUERY **********
+BEGIN;
+**************************
+
+BEGIN
+********* QUERY **********
+SELECT transfer(41552, 41553, 8000, 'Race A');
+**************************
+
+ transfer 
+----------
+   300722
+(1 row)
+
+********* QUERY **********
+COMMIT;
+**************************
+
+COMMIT
+********* QUERY **********
+SELECT * FROM v_demo_wallets ORDER BY wallet_id;
+**************************
+
+ customer | wallet_id | stored_balance | ledger_balance | reconciles 
+----------+-----------+----------------+----------------+------------
+ Bola     |     41552 |        2000.00 |        2000.00 | OK
+ Kunle    |     41553 |       13000.00 |       13000.00 | OK
+ Ada      |     41554 |           0.00 |              0 | OK
+(3 rows)
+
+********* QUERY **********
+SET search_path TO tcs;
+**************************
+
+SET
+********* QUERY **********
+DO $$
+DECLARE w BIGINT[]; t BIGINT[];
+BEGIN
+    SELECT array_agg(w2.wallet_id) INTO w
+    FROM wallets w2 JOIN customers c ON c.customer_id = w2.customer_id
+    WHERE c.phone IN ('+2348099000001','+2348099000002','+2348099000003');
+    IF w IS NULL THEN RETURN; END IF;
+
+    SELECT array_agg(DISTINCT txn_id) INTO t FROM ledger_entries WHERE wallet_id = ANY (w);
+
+    -- give the system wallet back what it paid out to fund the demo wallets
+    UPDATE wallets s
+    SET balance = s.balance + COALESCE((SELECT sum(CASE WHEN direction = 'DR' THEN amount ELSE -amount END)
+                                        FROM ledger_entries le
+                                        WHERE le.txn_id = ANY (t) AND le.wallet_id = s.wallet_id), 0)
+    WHERE s.wallet_type = 'SYSTEM';
+
+    DELETE FROM ledger_entries WHERE txn_id = ANY (t);
+    DELETE FROM transactions   WHERE txn_id = ANY (t);
+    UPDATE wallets SET balance = 0, status = 'ACTIVE' WHERE wallet_id = ANY (w);
+END $$;
+**************************
+
+DO
+********* QUERY **********
+INSERT INTO customers (first_name, last_name, phone, date_of_birth, state_of_residence, kyc_tier, bvn_hash) VALUES
+ ('Bola',  'Adewale', '+2348099000001', '1994-03-14', 'Lagos', 2, encode(sha256('DEMO-BVN-1'::bytea), 'hex')),
+ ('Kunle', 'Ojo',     '+2348099000002', '1989-11-02', 'Oyo',   2, encode(sha256('DEMO-BVN-2'::bytea), 'hex')),
+ ('Ada',   'Eze',     '+2348099000003', '1999-07-21', 'Enugu', 2, encode(sha256('DEMO-BVN-3'::bytea), 'hex'))
+ON CONFLICT (phone) DO NOTHING;
+**************************
+
+INSERT 0 0
+********* QUERY **********
+INSERT INTO wallets (wallet_type, customer_id)
+SELECT 'CUSTOMER', c.customer_id FROM customers c
+WHERE c.phone LIKE '+234809900000_'
+  AND NOT EXISTS (SELECT 1 FROM wallets w WHERE w.customer_id = c.customer_id);
+**************************
+
+INSERT 0 0
+********* QUERY **********
+SELECT transfer((SELECT wallet_id FROM wallets WHERE wallet_type = 'SYSTEM'),
+                w.wallet_id, x.amt, 'Demo funding', 'WEB', 'DEPOSIT')
+FROM (VALUES ('+2348099000001', 10000), ('+2348099000002', 5000)) AS x(phone, amt)
+JOIN customers c ON c.phone = x.phone
+JOIN wallets w ON w.customer_id = c.customer_id;
+**************************
+
+ transfer 
+----------
+   300723
+   300724
+(2 rows)
+
+********* QUERY **********
+CREATE OR REPLACE VIEW v_demo_wallets AS
+SELECT c.first_name AS customer, w.wallet_id, w.balance AS stored_balance,
+       COALESCE((SELECT sum(CASE WHEN direction = 'CR' THEN amount ELSE -amount END)
+                 FROM ledger_entries le WHERE le.wallet_id = w.wallet_id), 0) AS ledger_balance,
+       CASE WHEN w.balance = COALESCE((SELECT sum(CASE WHEN direction = 'CR' THEN amount ELSE -amount END)
+                 FROM ledger_entries le WHERE le.wallet_id = w.wallet_id), 0)
+            THEN 'OK' ELSE 'MISMATCH' END AS reconciles
+FROM wallets w JOIN customers c ON c.customer_id = w.customer_id
+WHERE c.phone LIKE '+234809900000_';
+**************************
+
+CREATE VIEW
+********* QUERY **********
+SELECT * FROM v_demo_wallets ORDER BY wallet_id;
+**************************
+
+ customer | wallet_id | stored_balance | ledger_balance | reconciles 
+----------+-----------+----------------+----------------+------------
+ Bola     |     41552 |       10000.00 |       10000.00 | OK
+ Kunle    |     41553 |        5000.00 |        5000.00 | OK
+ Ada      |     41554 |           0.00 |              0 | OK
+(3 rows)
+
+********* QUERY **********
+BEGIN ISOLATION LEVEL REPEATABLE READ;
+**************************
+
+BEGIN
+********* QUERY **********
+SELECT balance FROM wallets WHERE wallet_id = 41552;
+**************************
+
+ balance  
+----------
+ 10000.00
+(1 row)
+
+********* QUERY **********
+UPDATE wallets SET balance = 2000 WHERE wallet_id = 41552;
+**************************
+
+UPDATE 1
+********* QUERY **********
+UPDATE wallets SET balance = balance + 8000 WHERE wallet_id = 41553;
+**************************
+
+UPDATE 1
+********* QUERY **********
+COMMIT;
+**************************
+
+COMMIT
+********* QUERY **********
+SET search_path TO tcs;
+**************************
+
+SET
+********* QUERY **********
+DO $$
+DECLARE w BIGINT[]; t BIGINT[];
+BEGIN
+    SELECT array_agg(w2.wallet_id) INTO w
+    FROM wallets w2 JOIN customers c ON c.customer_id = w2.customer_id
+    WHERE c.phone IN ('+2348099000001','+2348099000002','+2348099000003');
+    IF w IS NULL THEN RETURN; END IF;
+
+    SELECT array_agg(DISTINCT txn_id) INTO t FROM ledger_entries WHERE wallet_id = ANY (w);
+
+    -- give the system wallet back what it paid out to fund the demo wallets
+    UPDATE wallets s
+    SET balance = s.balance + COALESCE((SELECT sum(CASE WHEN direction = 'DR' THEN amount ELSE -amount END)
+                                        FROM ledger_entries le
+                                        WHERE le.txn_id = ANY (t) AND le.wallet_id = s.wallet_id), 0)
+    WHERE s.wallet_type = 'SYSTEM';
+
+    DELETE FROM ledger_entries WHERE txn_id = ANY (t);
+    DELETE FROM transactions   WHERE txn_id = ANY (t);
+    UPDATE wallets SET balance = 0, status = 'ACTIVE' WHERE wallet_id = ANY (w);
+END $$;
+**************************
+
+DO
+********* QUERY **********
+INSERT INTO customers (first_name, last_name, phone, date_of_birth, state_of_residence, kyc_tier, bvn_hash) VALUES
+ ('Bola',  'Adewale', '+2348099000001', '1994-03-14', 'Lagos', 2, encode(sha256('DEMO-BVN-1'::bytea), 'hex')),
+ ('Kunle', 'Ojo',     '+2348099000002', '1989-11-02', 'Oyo',   2, encode(sha256('DEMO-BVN-2'::bytea), 'hex')),
+ ('Ada',   'Eze',     '+2348099000003', '1999-07-21', 'Enugu', 2, encode(sha256('DEMO-BVN-3'::bytea), 'hex'))
+ON CONFLICT (phone) DO NOTHING;
+**************************
+
+INSERT 0 0
+********* QUERY **********
+INSERT INTO wallets (wallet_type, customer_id)
+SELECT 'CUSTOMER', c.customer_id FROM customers c
+WHERE c.phone LIKE '+234809900000_'
+  AND NOT EXISTS (SELECT 1 FROM wallets w WHERE w.customer_id = c.customer_id);
+**************************
+
+INSERT 0 0
+********* QUERY **********
+SELECT transfer((SELECT wallet_id FROM wallets WHERE wallet_type = 'SYSTEM'),
+                w.wallet_id, x.amt, 'Demo funding', 'WEB', 'DEPOSIT')
+FROM (VALUES ('+2348099000001', 10000), ('+2348099000002', 5000)) AS x(phone, amt)
+JOIN customers c ON c.phone = x.phone
+JOIN wallets w ON w.customer_id = c.customer_id;
+**************************
+
+ transfer 
+----------
+   300725
+   300726
+(2 rows)
+
+********* QUERY **********
+CREATE OR REPLACE VIEW v_demo_wallets AS
+SELECT c.first_name AS customer, w.wallet_id, w.balance AS stored_balance,
+       COALESCE((SELECT sum(CASE WHEN direction = 'CR' THEN amount ELSE -amount END)
+                 FROM ledger_entries le WHERE le.wallet_id = w.wallet_id), 0) AS ledger_balance,
+       CASE WHEN w.balance = COALESCE((SELECT sum(CASE WHEN direction = 'CR' THEN amount ELSE -amount END)
+                 FROM ledger_entries le WHERE le.wallet_id = w.wallet_id), 0)
+            THEN 'OK' ELSE 'MISMATCH' END AS reconciles
+FROM wallets w JOIN customers c ON c.customer_id = w.customer_id
+WHERE c.phone LIKE '+234809900000_';
+**************************
+
+CREATE VIEW
+********* QUERY **********
+SELECT * FROM v_demo_wallets ORDER BY wallet_id;
+**************************
+
+ customer | wallet_id | stored_balance | ledger_balance | reconciles 
+----------+-----------+----------------+----------------+------------
+ Bola     |     41552 |       10000.00 |       10000.00 | OK
+ Kunle    |     41553 |        5000.00 |        5000.00 | OK
+ Ada      |     41554 |           0.00 |              0 | OK
+(3 rows)
+
+********* QUERY **********
+BEGIN;
+**************************
+
+BEGIN
+********* QUERY **********
+UPDATE wallets SET balance = balance - 1000 WHERE wallet_id = 41552;
+**************************
+
+UPDATE 1
+********* QUERY **********
+UPDATE wallets SET balance = balance + 1000 WHERE wallet_id = 41553;
+**************************
+
+UPDATE 1
+********* QUERY **********
+ROLLBACK;
+**************************
+
+ROLLBACK
+********* QUERY **********
+SET search_path TO tcs;
+**************************
+
+SET
+********* QUERY **********
+DO $$
+DECLARE w BIGINT[]; t BIGINT[];
+BEGIN
+    SELECT array_agg(w2.wallet_id) INTO w
+    FROM wallets w2 JOIN customers c ON c.customer_id = w2.customer_id
+    WHERE c.phone IN ('+2348099000001','+2348099000002','+2348099000003');
+    IF w IS NULL THEN RETURN; END IF;
+
+    SELECT array_agg(DISTINCT txn_id) INTO t FROM ledger_entries WHERE wallet_id = ANY (w);
+
+    -- give the system wallet back what it paid out to fund the demo wallets
+    UPDATE wallets s
+    SET balance = s.balance + COALESCE((SELECT sum(CASE WHEN direction = 'DR' THEN amount ELSE -amount END)
+                                        FROM ledger_entries le
+                                        WHERE le.txn_id = ANY (t) AND le.wallet_id = s.wallet_id), 0)
+    WHERE s.wallet_type = 'SYSTEM';
+
+    DELETE FROM ledger_entries WHERE txn_id = ANY (t);
+    DELETE FROM transactions   WHERE txn_id = ANY (t);
+    UPDATE wallets SET balance = 0, status = 'ACTIVE' WHERE wallet_id = ANY (w);
+END $$;
+**************************
+
+DO
+********* QUERY **********
+INSERT INTO customers (first_name, last_name, phone, date_of_birth, state_of_residence, kyc_tier, bvn_hash) VALUES
+ ('Bola',  'Adewale', '+2348099000001', '1994-03-14', 'Lagos', 2, encode(sha256('DEMO-BVN-1'::bytea), 'hex')),
+ ('Kunle', 'Ojo',     '+2348099000002', '1989-11-02', 'Oyo',   2, encode(sha256('DEMO-BVN-2'::bytea), 'hex')),
+ ('Ada',   'Eze',     '+2348099000003', '1999-07-21', 'Enugu', 2, encode(sha256('DEMO-BVN-3'::bytea), 'hex'))
+ON CONFLICT (phone) DO NOTHING;
+**************************
+
+INSERT 0 0
+********* QUERY **********
+INSERT INTO wallets (wallet_type, customer_id)
+SELECT 'CUSTOMER', c.customer_id FROM customers c
+WHERE c.phone LIKE '+234809900000_'
+  AND NOT EXISTS (SELECT 1 FROM wallets w WHERE w.customer_id = c.customer_id);
+**************************
+
+INSERT 0 0
+********* QUERY **********
+SELECT transfer((SELECT wallet_id FROM wallets WHERE wallet_type = 'SYSTEM'),
+                w.wallet_id, x.amt, 'Demo funding', 'WEB', 'DEPOSIT')
+FROM (VALUES ('+2348099000001', 10000), ('+2348099000002', 5000)) AS x(phone, amt)
+JOIN customers c ON c.phone = x.phone
+JOIN wallets w ON w.customer_id = c.customer_id;
+**************************
+
+ transfer 
+----------
+   300727
+   300728
+(2 rows)
+
+********* QUERY **********
+CREATE OR REPLACE VIEW v_demo_wallets AS
+SELECT c.first_name AS customer, w.wallet_id, w.balance AS stored_balance,
+       COALESCE((SELECT sum(CASE WHEN direction = 'CR' THEN amount ELSE -amount END)
+                 FROM ledger_entries le WHERE le.wallet_id = w.wallet_id), 0) AS ledger_balance,
+       CASE WHEN w.balance = COALESCE((SELECT sum(CASE WHEN direction = 'CR' THEN amount ELSE -amount END)
+                 FROM ledger_entries le WHERE le.wallet_id = w.wallet_id), 0)
+            THEN 'OK' ELSE 'MISMATCH' END AS reconciles
+FROM wallets w JOIN customers c ON c.customer_id = w.customer_id
+WHERE c.phone LIKE '+234809900000_';
+**************************
+
+CREATE VIEW
+********* QUERY **********
+SELECT * FROM v_demo_wallets ORDER BY wallet_id;
+**************************
+
+ customer | wallet_id | stored_balance | ledger_balance | reconciles 
+----------+-----------+----------------+----------------+------------
+ Bola     |     41552 |       10000.00 |       10000.00 | OK
+ Kunle    |     41553 |        5000.00 |        5000.00 | OK
+ Ada      |     41554 |           0.00 |              0 | OK
+(3 rows)
+
+********* QUERY **********
+BEGIN;
+**************************
+
+BEGIN
+********* QUERY **********
+SELECT transfer(41552, 41553, 1000, 'Bola to Kunle');
+**************************
+
+ transfer 
+----------
+   300729
+(1 row)
+
+********* QUERY **********
+COMMIT;
+**************************
+
+COMMIT
+********* QUERY **********
+SELECT * FROM v_demo_wallets ORDER BY wallet_id;
+**************************
+
+ customer | wallet_id | stored_balance | ledger_balance | reconciles 
+----------+-----------+----------------+----------------+------------
+ Bola     |     41552 |       10000.00 |       10000.00 | OK
+ Kunle    |     41553 |        5000.00 |        5000.00 | OK
+ Ada      |     41554 |           0.00 |              0 | OK
+(3 rows)
+
