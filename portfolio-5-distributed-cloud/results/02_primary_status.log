@@ -1,0 +1,26 @@
+********* QUERY **********
+SELECT application_name, client_addr, state, sync_state,
+       sent_lsn, replay_lsn,
+       pg_size_pretty(pg_wal_lsn_diff(sent_lsn, replay_lsn)) AS bytes_behind,
+       write_lag, flush_lag, replay_lag
+FROM pg_stat_replication;
+**************************
+
+ application_name | client_addr |   state   | sync_state |  sent_lsn  | replay_lsn | bytes_behind | write_lag | flush_lag | replay_lag 
+------------------+-------------+-----------+------------+------------+------------+--------------+-----------+-----------+------------
+ tcs_replica      | 172.18.0.4  | streaming | async      | 0/1A000060 | 0/1A000060 | 0 bytes      |           |           | 
+(1 row)
+
+********* QUERY **********
+SELECT application_name, client_addr, state, sync_state,
+       sent_lsn, replay_lsn,
+       pg_size_pretty(pg_wal_lsn_diff(sent_lsn, replay_lsn)) AS bytes_behind,
+       write_lag, flush_lag, replay_lag
+FROM pg_stat_replication;
+**************************
+
+ application_name | client_addr |   state   | sync_state |  sent_lsn  | replay_lsn | bytes_behind | write_lag | flush_lag | replay_lag 
+------------------+-------------+-----------+------------+------------+------------+--------------+-----------+-----------+------------
+ tcs_replica      | 172.18.0.4  | streaming | async      | 0/1A008CE0 | 0/1A008CE0 | 0 bytes      |           |           | 
+(1 row)
+

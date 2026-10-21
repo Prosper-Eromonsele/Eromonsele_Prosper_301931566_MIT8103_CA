@@ -1,0 +1,32 @@
+********* QUERY **********
+ALTER SYSTEM SET synchronous_standby_names = 'tcs_replica';
+**************************
+
+ALTER SYSTEM
+********* QUERY **********
+SELECT pg_reload_conf();
+**************************
+
+ pg_reload_conf 
+----------------
+ t
+(1 row)
+
+********* QUERY **********
+SELECT pg_sleep(1);
+**************************
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+********* QUERY **********
+SELECT application_name, state, sync_state FROM pg_stat_replication;
+**************************
+
+ application_name |   state   | sync_state 
+------------------+-----------+------------
+ tcs_replica      | streaming | sync
+(1 row)
+

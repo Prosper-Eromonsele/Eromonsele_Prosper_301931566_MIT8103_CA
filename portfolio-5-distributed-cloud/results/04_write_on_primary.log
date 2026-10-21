@@ -1,0 +1,31 @@
+********* QUERY **********
+SET search_path TO tcs;
+**************************
+
+SET
+********* QUERY **********
+SELECT w.wallet_id AS bola  FROM wallets w JOIN customers c USING (customer_id) WHERE c.phone = '+2348099000001' 
+**************************
+
+********* QUERY **********
+SELECT w.wallet_id AS kunle FROM wallets w JOIN customers c USING (customer_id) WHERE c.phone = '+2348099000002' 
+**************************
+
+********* QUERY **********
+SELECT w.wallet_id AS ada   FROM wallets w JOIN customers c USING (customer_id) WHERE c.phone = '+2348099000003' 
+**************************
+
+********* QUERY **********
+SELECT transfer(41552, 41553, 500, 'P5 replication test') AS txn_id 
+**************************
+
+********* QUERY **********
+SELECT 300731 AS txn_id, reference, amount, clock_timestamp() AS committed_on_primary_at
+FROM tcs.transactions WHERE txn_id = 300731;
+**************************
+
+ txn_id |        reference         | amount |    committed_on_primary_at    
+--------+--------------------------+--------+-------------------------------
+ 300731 | TCS-20261021131343347634 | 500.00 | 2026-10-21 13:13:43.405068+00
+(1 row)
+

@@ -1,0 +1,31 @@
+********* QUERY **********
+ALTER SYSTEM RESET synchronous_standby_names;
+**************************
+
+ALTER SYSTEM
+********* QUERY **********
+SELECT pg_reload_conf();
+**************************
+
+ pg_reload_conf 
+----------------
+ t
+(1 row)
+
+********* QUERY **********
+SELECT pg_sleep(1);
+**************************
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+********* QUERY **********
+SELECT application_name, state, sync_state FROM pg_stat_replication;
+**************************
+
+ application_name | state | sync_state 
+------------------+-------+------------
+(0 rows)
+

@@ -1,0 +1,14 @@
+********* QUERY **********
+SELECT txn_id, reference, amount, narration, created_at,
+       clock_timestamp() AS read_on_replica_at,
+       now() - pg_last_xact_replay_timestamp() AS replay_delay
+FROM tcs.transactions
+WHERE narration = 'P5 replication test'
+ORDER BY txn_id DESC LIMIT 3;
+**************************
+
+ txn_id |        reference         | amount |      narration      |          created_at           |      read_on_replica_at      |  replay_delay   
+--------+--------------------------+--------+---------------------+-------------------------------+------------------------------+-----------------
+ 300731 | TCS-20261021131343347634 | 500.00 | P5 replication test | 2026-10-21 13:13:42.275576+00 | 2026-10-21 13:13:54.39364+00 | 00:00:10.969693
+(1 row)
+

@@ -1,4 +1,4 @@
-# PostgreSQL 16 (Portfolios 1-3, 5) and Neo4j 5 (Portfolio 4).
+# PostgreSQL 16 primary (Portfolios 1-3), Neo4j 5 (Portfolio 4) and a PostgreSQL read replica (Portfolio 5).
 # Start everything:   docker compose up -d
 # Start only Neo4j:   docker compose up -d neo4j
 services:
@@ -27,3 +27,23 @@ services:
     volumes:
       - ./portfolio-4-nosql/import:/import  # CSV files exported from PostgreSQL
       - ./portfolio-4-nosql:/p4             # Cypher scripts and results
+
+  replica:                                  # Portfolio 5: streaming read replica of "postgres"
+    image: postgres:16
+    container_name: tcs-replica
+    user: postgres
+    environment:
+      PGPASSWORD: repl_lab_2026             # lab-only password of the "replicator" role
+    command: >
+      bash -c "if [ ! -s /var/lib/postgresql/data/PG_VERSION ]; then
+                 until pg_basebackup -h postgres -U replicator -D /var/lib/postgresql/data -R -X stream -P;
+                 do echo 'waiting for primary...'; rm -rf /var/lib/postgresql/data/*; sleep 3; done;
+                 chmod 700 /var/lib/postgresql/data;
+               fi;
+               exec postgres -c cluster_name=tcs_replica"
+    depends_on:
+      - postgres
+    ports:
+      - "5433:5432"
+    volumes:
+      - ./:/work

@@ -1,0 +1,62 @@
+********* QUERY **********
+SET search_path TO tcs;
+**************************
+
+SET
+********* QUERY **********
+SELECT pg_is_in_recovery() AS i_am_a_replica;
+**************************
+
+ i_am_a_replica 
+----------------
+ t
+(1 row)
+
+********* QUERY **********
+SELECT status, sender_host, sender_port, slot_name, latest_end_time
+FROM pg_stat_wal_receiver;
+**************************
+
+  status   | sender_host | sender_port | slot_name |        latest_end_time        
+-----------+-------------+-------------+-----------+-------------------------------
+ streaming | postgres    |        5432 |           | 2026-10-21 13:13:51.746819+00
+(1 row)
+
+********* QUERY **********
+SELECT now() - pg_last_xact_replay_timestamp() AS replay_delay;
+**************************
+
+  replay_delay   
+-----------------
+ 00:00:27.709188
+(1 row)
+
+********* QUERY **********
+SELECT (SELECT count(*) FROM customers)      AS customers,
+       (SELECT count(*) FROM transactions)   AS transactions,
+       (SELECT count(*) FROM ledger_entries) AS ledger_entries;
+**************************
+
+ customers | transactions | ledger_entries 
+-----------+--------------+----------------
+     40003 |       300709 |         592570
+(1 row)
+
+********* QUERY **********
+UPDATE wallets SET balance = balance + 1 WHERE wallet_id = 1;
+**************************
+
+********* QUERY **********
+SELECT count(*) AS wallets_not_matching_ledger FROM (
+  SELECT w.wallet_id
+  FROM wallets w LEFT JOIN ledger_entries le ON le.wallet_id = w.wallet_id
+  WHERE w.wallet_type <> 'SYSTEM'
+  GROUP BY w.wallet_id
+  HAVING w.balance <> COALESCE(SUM(CASE WHEN le.direction = 'CR' THEN le.amount ELSE -le.amount END), 0)) x;
+**************************
+
+ wallets_not_matching_ledger 
+-----------------------------
+                           0
+(1 row)
+
