@@ -1,0 +1,11 @@
+device, os, customers_on_device, customers
+"fp-ring-01", "ANDROID", 8, ["Chidi Garba", "Chiamaka Garba", "Fatima Ojo", "Bolanle Ogunleye", "Abubakar Nnaji", "Segun Aliyu", "Chidi Usman", "Musa Ekwueme"]
+"fp-ring-02", "ANDROID", 8, ["Babatunde Adebayo", "Nnamdi Balogun", "Esther Abubakar", "Maryam Adebayo", "Temitope Umeh", "Nnamdi Bello", "Hauwa Salami", "Chiamaka Bello"]
+"fp-ring-03", "IOS", 8, ["Segun Okafor", "Ikechukwu Ekwueme", "Amaka Nnaji", "Kemi Nwosu", "Segun Salami", "Usman Adebayo", "Emmanuel Okonkwo", "Zainab Lawal"]
+customer_id, collector, day, senders, received
+407, "Oluwaseun Bello", 2026-10-11, 10, 98000.0
+money_trail, amounts, wallet_hops, minutes_from_first_hop_to_bank
+["Oluwaseun Bello", "Funmilayo Salami", "Ifeoma Balogun", "Ifeoma Oladipo", "Esther Ogunleye", "United Bank for Africa 0987654321"], [95000.0, 94500.0, 94000.0, 93500.0, 93000.0], 4, 55
+collector, linked_type, how_many
+"Oluwaseun Bello", "Customer", 29
+"Oluwaseun Bello", "Device", 13

@@ -1,4 +1,6 @@
-# PostgreSQL 16 for Portfolios 1-3. Start with:  docker compose up -d
+# PostgreSQL 16 (Portfolios 1-3, 5) and Neo4j 5 (Portfolio 4).
+# Start everything:   docker compose up -d
+# Start only Neo4j:   docker compose up -d neo4j
 services:
   postgres:
     image: postgres:16
@@ -10,3 +12,18 @@ services:
       - "5432:5432"
     volumes:
       - ./:/work                            # repo is visible inside the container at /work
+
+  neo4j:
+    image: neo4j:5.26.0-community
+    container_name: tcs-neo4j
+    environment:
+      NEO4J_AUTH: neo4j/tcs_lab_2026        # lab-only password
+      NEO4J_server_directories_import: /import
+      NEO4J_server_memory_heap_max__size: 1G
+      NEO4J_server_memory_pagecache_size: 512M
+    ports:
+      - "7474:7474"                         # Neo4j Browser: http://localhost:7474
+      - "7687:7687"                         # Bolt (cypher-shell, drivers)
+    volumes:
+      - ./portfolio-4-nosql/import:/import  # CSV files exported from PostgreSQL
+      - ./portfolio-4-nosql:/p4             # Cypher scripts and results

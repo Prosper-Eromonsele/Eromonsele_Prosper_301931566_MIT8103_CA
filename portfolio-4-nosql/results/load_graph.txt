@@ -1,0 +1,8 @@
+node_label, nodes
+"BankAccount", 3169
+"Customer", 40003
+"Device", 46082
+relationship, relationships
+"PAID_OUT", 3601
+"SENT", 27242
+"USES", 46104

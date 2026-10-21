@@ -7,3 +7,6 @@ Thumbs.db
 # keep the execution-plan evidence
 !portfolio-*/results/*.log
 *.zip
+
+# P4 CSV exports are regenerated from PostgreSQL, so they are not committed
+portfolio-4-nosql/import/*.csv
